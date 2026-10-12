@@ -27,6 +27,12 @@ import { useCallback, useRef, useState, type RefObject } from 'react'
  */
 export const DOCK_CLEARANCE_PX = 16
 
+/** Top-down layout: the dock hangs from `top` and grows downward, so its
+ *  `max-height` is the pane height left under that offset. A percentage on an
+ *  absolutely positioned box resolves against the pane (its containing block),
+ *  not against the dock's own content. */
+export const topDownDockMaxHeight = (top: number) => `calc(100% - ${top}px)`
+
 /**
  * The dock's measured height and scrollbar gutter, plus the composer box ref
  * (the quote flight's target).
