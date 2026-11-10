@@ -154,9 +154,53 @@ this gateway process already read a block from the same `sessions/` directory: a
 disposable Codex session deletes its rollout at teardown, so the last reading is
 kept in memory and returned with `stale` judged again. The kept reading also wins
 over a block that a surviving log recorded before it, compared by `captured_at`, or
-by `source_mtime` when either reading has no `captured_at`. Only
-`rollout-*.jsonl` files are opened and a link at that name is refused, so `auth.json`
-is not read.
+by `source_mtime` when either reading has no `captured_at`. The newest block wins
+even when it holds neither window and names no `plan_type`: that is what a sign-in
+with no plan limits writes (an API key, another model provider), so both windows
+come back `null` instead of an older block from a different sign-in. A window-less
+block that names a `plan_type` says nothing about the windows and is skipped like a
+line with no block. Only `rollout-*.jsonl` files are opened and a link at that name
+is refused, so `auth.json` is not read.
+
+`/api/usage/kiro` also carries `claude`: Claude Code's 5-hour and 7-day windows, in
+the same `five_hour` and `weekly` shape with `window_minutes` `null` (the adapter
+names its windows but sends no length), plus a `captured_at` per window, the SDK's
+`status` (`allowed`, `allowed_warning`, `rejected`) and `status_resets_at`, the
+payload's top-level `resetsAt` that the status belongs to. That field is optional, so
+without it the reset is that of the window `rateLimitType` names, else the last
+window's. Both are `null` once that
+reset has passed, so a `rejected` never outlives its window, and a reading left with
+no window and no live status is `null`. claude-agent-acp puts the
+Claude Agent SDK's `rate_limit_info` on a `usage_update` under
+`_meta["_claude/rateLimit"]`, only for a Claude subscription sign-in and only after a
+model turn. Both frame paths (`AcpClient._track_usage_update` and the handle's
+`usage_update` branch) hand every such frame to `agent_sdk/claude_rate_limits.py`, which
+reads `unifiedWindows.five_hour` and `seven_day` (a `utilization` fraction and a
+`resetsAt` in epoch seconds), or the one window `rateLimitType` names on a payload
+without them, and keeps the newest value of each window in gateway memory. A frame
+with one window replaces only that window. A gateway restart drops the reading, and
+`claude` is `null` until the next turn reports one. The route reads it on every
+request, outside its two-minute response cache.
+
+The Usage view renders both in its **Plan Limits** card
+(`website/src/pages/overview/PlanLimitsCard.tsx`, parsed by `api/planLimits.ts`):
+one row per provider that has a reading, plus the default harness when it is Claude
+Code or Codex, so a Kiro-only install shows no card. A row shows each window's used
+share by the window's own length; a window whose reset time has passed (judged again
+against the browser clock) shows a dash, never its old share. Hover (after the shared
+hover-intent delay) or keyboard focus shows a detail card as a tooltip; a click or tap
+pins it as a non-modal dialog that takes focus and closes on Escape (focus returns to
+the row), an outside press, a resize, or a scroll that moves the row (a scroll inside
+the card keeps it). The card gives used and left, the reset time with a two-unit
+countdown, the reading's age and source (a window reported a minute or more before
+the newest part carries its own age), and the provider's warning or limit-reached
+status, judged again against its `status_resets_at`. A Claude Code reading with a
+status but no window says "No usage window", not Codex's "No plan limits". A failed
+report refresh adds an inline `ErrorNotice` with the hand-off, and because that
+hand-off is a control, the hover and focus forms are then a non-modal dialog that does
+not take focus, as the system-metrics card is. The card adds no request and no timer: it
+rides on the Usage report's own fetch, and its clock ticks only while a detail card is
+open.
 
 `/api/usage/kiro` also carries `tokens`: the usage shards' 30-day token and
 dollar-cost history from `usage_history._parse_token_history` (totals, the

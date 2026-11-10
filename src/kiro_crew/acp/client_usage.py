@@ -56,6 +56,7 @@ from kiro_crew.acp.types import (
     AcpEvent,
     JsonRpcMessage,
 )
+from kiro_crew.agent_sdk import claude_rate_limits
 from kiro_crew.constants import COMPACT_WAIT_TIMEOUT_SECS
 
 if TYPE_CHECKING:
@@ -95,6 +96,8 @@ def _track_usage_update(self: AcpClient, msg: JsonRpcMessage) -> None:
         cost = parse_usage_cost(update)
         if cost is not None:
             self.last_prompt_stats.apply_cost_cumulative(cost)
+        # Account plan windows (claude seam); a frame without them changes nothing.
+        claude_rate_limits.note_usage_update(update)
     elif kind == UPDATE_CONFIG_OPTION:
         self._handle_config_option_update(msg)
     elif kind and kind not in KNOWN_SESSION_UPDATES:

@@ -1051,9 +1051,18 @@ subagent or cron reader gets no mode change. Frames:
 `test/fixtures/acp_frames/claude/harness-notices.jsonl`; contract tests:
 `test/test_claude_harness_notices.py`.
 
-Crew does not read `usage_update._meta["_claude/rateLimit"]`: a `_meta` field is an X
-capability ([harness-parity-gate](../../ci/harness-parity-gate.md)) needing a replayed
-live capture, and the SDK scopes it to claude.ai subscription users.
+Crew reads `usage_update._meta["_claude/rateLimit"]` only to show the 5-hour and 7-day
+plan windows in the Usage view (`agent_sdk/claude_rate_limits.py`; learn-cron-dashboard,
+the Usage view's **Plan Limits** card). No other behaviour depends on it.
+claude-agent-acp 0.94.0 forwards each SDK `rate_limit_event` under that key, and the
+claude CLI that SDK 0.3.303 ships validates `rate_limit_info.unifiedWindows.five_hour`
+and `seven_day`, each a `utilization` and an integer `resetsAt`. The read has no live
+capture yet, which the X-capture rule
+([harness-parity-gate](../../ci/harness-parity-gate.md)) asks of a `_meta` field: the
+SDK sends the event only for a claude.ai subscription sign-in, and no capture under
+`test/fixtures/acp_frames/claude/` carries the key. The parser drops each malformed
+field, records nothing for a payload with no valid field, and never raises in the frame
+loop.
 
 ### The adapter's session title
 

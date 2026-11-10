@@ -64,6 +64,7 @@ from kiro_crew.acp.types import (
     JsonRpcMessage,
     StructuredStatus,
 )
+from kiro_crew.agent_sdk import claude_rate_limits
 from kiro_crew.recovery.ladder import classify_infra_error
 from kiro_crew.sel import sel
 
@@ -385,6 +386,8 @@ def _handle_update_frame(self: AcpSessionHandle, msg: JsonRpcMessage) -> list[Ac
         cost = parse_usage_cost(update)
         if cost is not None:
             self.last_prompt_stats.apply_cost_cumulative(cost)
+        # Account plan windows (claude seam); a frame without them changes nothing.
+        claude_rate_limits.note_usage_update(update)
         return []
 
     # config_option_update: ACP pushes updated configOptions (e.g. after

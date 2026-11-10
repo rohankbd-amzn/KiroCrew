@@ -103,6 +103,19 @@ def _fresh_reexec_environment(_floor_monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _fresh_claude_rate_limits(_floor_monkeypatch):
+    """Start every test with no Claude Code plan reading in the process.
+
+    Every ``usage_update`` a test feeds through either frame path records the
+    ``_claude/rateLimit`` meta it carries in one process-wide store, so a replayed
+    Claude frame in one test would otherwise show up on a later test's usage route.
+    """
+    from kiro_crew.agent_sdk import claude_rate_limits
+
+    _floor_monkeypatch.setattr(claude_rate_limits, "_STORE", claude_rate_limits._Store())
+
+
+@pytest.fixture(autouse=True)
 def _fresh_released_sessions_warning(_floor_monkeypatch):
     """Start every test with the stranded-records warning not yet given.
 

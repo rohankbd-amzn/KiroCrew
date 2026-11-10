@@ -561,7 +561,8 @@ class TestApiKiroUsage:
             resp = await client.get("/api/usage/kiro")
             assert resp.status == 200
             data = await resp.json()
-            assert data == {"cached": True}
+            # Claude Code's reading is read outside the cache, so it rides on a cache hit.
+            assert data == {"cached": True, "claude": None}
 
     @pytest.mark.asyncio
     async def test_fresh_fetch(self, tmp_path):
@@ -658,7 +659,9 @@ class TestApiKiroUsage:
                 complete = await second.json()
                 assert complete["refreshing"] is False
                 assert complete["sessions"]["total_sessions"] == 2
-                assert usage_mod._CACHE == complete
+                # The cache holds everything but Claude Code's reading, read per request.
+                assert "claude" not in usage_mod._CACHE
+                assert {**usage_mod._CACHE, "claude": None} == complete
 
     @pytest.mark.asyncio
     async def test_missing_directory_preserves_billing_and_refreshes(self, tmp_path):

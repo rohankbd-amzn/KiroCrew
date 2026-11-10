@@ -33,6 +33,7 @@ from aiohttp import web
 
 from kiro_crew import _facade_mirror
 from kiro_crew.acp.types import TurnUsage
+from kiro_crew.agent_sdk.claude_rate_limits import read_claude_rate_limits
 from kiro_crew.dashboard.handlers.codex_usage import read_codex_rate_limits
 from kiro_crew.dashboard.handlers.usage_history import _parse_token_history
 from kiro_crew.dashboard.handlers.usage_sessions import _CACHE_TTL, _usage_sessions_snapshot
@@ -711,21 +712,30 @@ def get_usage_cache() -> dict:
         return {}
 
 
+def _with_claude_reading(response: dict[str, Any]) -> dict[str, Any]:
+    """*response* with Claude Code's current windows, read outside the response cache.
+
+    The reading is a memory read that changes on any Claude turn, so a cached copy would only
+    show an older value for no saving.
+    """
+    return {**response, "claude": read_claude_rate_limits()}
+
+
 async def api_kiro_usage(request: web.Request) -> web.Response:
-    """GET /api/usage/kiro — local session analytics, cached billing and Codex's windows."""
+    """GET /api/usage/kiro — session analytics, cached billing, and Codex and Claude windows."""
     global _CACHE, _CACHE_TS
     now = time.time()
 
     # Fast path — lock-free read is intentional; worst case is one extra
     # cache refresh which is harmless (double-checked locking pattern).
     if now - _CACHE_TS < _CACHE_TTL and _CACHE:
-        return web.json_response(_CACHE)
+        return web.json_response(_with_claude_reading(_CACHE))
 
     async with _CACHE_LOCK:
         # Re-check after acquiring lock; another request may have refreshed.
         now = time.time()
         if now - _CACHE_TS < _CACHE_TTL and _CACHE:
-            return web.json_response(_CACHE)
+            return web.json_response(_with_claude_reading(_CACHE))
 
         username = getpass.getuser()
         sessions, refreshing = await _usage_sessions_snapshot()
@@ -770,7 +780,7 @@ async def api_kiro_usage(request: web.Request) -> web.Response:
             _CACHE = response
             _CACHE_TS = time.time()
 
-    return web.json_response(response)
+    return web.json_response(_with_claude_reading(response))
 
 
 async def api_usage(request: web.Request) -> web.Response:
