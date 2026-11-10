@@ -1,3 +1,4 @@
+const { readFileSync: readSource } = require("./source-with-owners");
 const { test } = require("node:test");
 const assert = require("node:assert");
 const fs = require("node:fs");
@@ -54,7 +55,7 @@ function windowsTemplate() {
  * missing entry.
  */
 function allowlistIds() {
-  const src = fs.readFileSync(WINDOW_LIFECYCLE_JS, "utf8");
+  const src = readSource(WINDOW_LIFECYCLE_JS, "utf8");
   const block = /WINDOWS_TITLEBAR_MENU_IDS\s*=\s*new Set\(\[([\s\S]*?)\]\)/.exec(src);
   assert.ok(block, "WINDOWS_TITLEBAR_MENU_IDS literal not found in window-lifecycle.js");
   return [...block[1].matchAll(/"([a-z-]+-menu)"/g)].map((m) => m[1]);
@@ -62,7 +63,7 @@ function allowlistIds() {
 
 /** Ids from the WINDOWS_MENUS literal in the renderer. */
 function rendererIds() {
-  const src = fs.readFileSync(RENDERER_TSX, "utf8");
+  const src = readSource(RENDERER_TSX, "utf8");
   const block = /WINDOWS_MENUS\s*=\s*\[([\s\S]*?)\]\s*as const/.exec(src);
   assert.ok(block, "WINDOWS_MENUS literal not found in WindowsTitlebarMenu.tsx");
   return [...block[1].matchAll(/id:\s*'([a-z-]+-menu)'/g)].map((m) => m[1]);
@@ -149,7 +150,7 @@ test("serializeMenuItems does not silently pass a submenu off as a command", () 
 // refactor that drops the argument.
 
 test("executeMenu accepts and forwards senderIsLocal into executeMenuItem", () => {
-  const src = fs.readFileSync(WINDOW_LIFECYCLE_JS, "utf8").replace(/\r\n/g, "\n");
+  const src = readSource(WINDOW_LIFECYCLE_JS, "utf8").replace(/\r\n/g, "\n");
   const executeMenu = src.match(
     /function executeMenu\(sender, id, index, senderIsLocal\) \{([\s\S]*?)\n  \}/,
   );
@@ -167,7 +168,7 @@ test("executeMenu accepts and forwards senderIsLocal into executeMenuItem", () =
 // row that no-ops on click. `menuItems` is what carries the boundary decision
 // into the items surface.
 test("menuItems accepts and forwards senderIsLocal into serializeMenuItems", () => {
-  const src = fs.readFileSync(WINDOW_LIFECYCLE_JS, "utf8").replace(/\r\n/g, "\n");
+  const src = readSource(WINDOW_LIFECYCLE_JS, "utf8").replace(/\r\n/g, "\n");
   const menuItems = src.match(
     /function menuItems\(sender, id, senderIsLocal\) \{([\s\S]*?)\n  \}/,
   );
