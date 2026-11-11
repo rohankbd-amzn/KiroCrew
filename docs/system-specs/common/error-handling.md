@@ -105,7 +105,7 @@ instead of the row simply disappearing.
 
 | Boundary | Strategy |
 |----------|----------|
-| ACP → CLI | Catch `AcpError`, print user-friendly message, `sys.exit(1)` |
+| ACP → CLI | Catch `AcpError`, print user-friendly message, `sys.exit(1)`. A start refusal can also escape as a raw `AcpRuntimeError`, which sits outside that hierarchy (a KAS engine that cannot be installed), so `kirocrew eval` catches both (`agent_sdk.drivers.acp_vocab` exports the two classes) and prints the text as one line through `safe_terminal_line`, logging the traceback at DEBUG |
 | Sandbox refusal → CLI and boot logs | `SandboxCeilingUnsealable` and `SandboxUnavailableError` sit outside the `AcpError` hierarchy, and each one's own text names the host's remedy. `kirocrew chat` (`cli_chat._run_chat`) prints that text as one line through `safe_terminal_line` and exits 1; the built-in adoption STAGE pass logs a `SandboxUnavailableError` as one warning carrying it. Neither prints a stack trace |
 | JSON-RPC read | Non-JSON lines silently skipped (kiro-cli debug output) |
 | Config load | Invalid JSON → log warning, return defaults |

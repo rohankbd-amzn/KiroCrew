@@ -56,6 +56,7 @@ from kiro_crew.acp.raw_sdk_workflow_cards import BackgroundCardRow
 from kiro_crew.acp.session_handle import (
     NATIVE_CHILD_NOT_RESUMABLE,
     AcpRequestTimeout,
+    AcpRuntimeError,
     AcpScopeAdmissionTimeout,
 )
 from kiro_crew.acp.timed_out_continuation import continue_timed_out_calls, timed_out_continuation
@@ -109,7 +110,11 @@ __all__ = [
     "STOP_RECOVERY_MAX_RETRIES",
     "TERMINAL_TOOL_STATUSES",
     "WAIT_REASON_INPUT",
+    "AcpError",
     "AcpRequestTimeout",
+    # The runtime family outside ``AcpError``: a session start the backend
+    # refuses (a KAS engine that cannot be fetched) raises it.
+    "AcpRuntimeError",
     "AcpScopeAdmissionTimeout",
     "AcpTimeoutError",
     "InFlightToolTracker",
