@@ -44,9 +44,9 @@ MEMBER_RECORDS_LEAF = "member-records"
 #: The record kinds, each a subdirectory of :data:`MEMBER_RECORDS_LEAF`. Byte-identical
 #: to ``member_space.RULES_DIR_NAME``, ``member_goals.GOALS_DIR_NAME``,
 #: ``member_space.DM_BINDINGS_DIR_NAME``, ``protected_app_state.APP_GRANTS_KIND``,
-#: ``protected_app_state.APP_DISABLED_KIND``, ``protected_app_state.APP_SECRETS_KIND``
-#: and ``bot_grant_store.APP_BOT_GRANTS_KIND``; a test pins them. Only
-#: :data:`MIGRATED_KINDS` had an old layout under ``trust/``.
+#: ``protected_app_state.APP_DISABLED_KIND``, ``protected_app_state.APP_SECRETS_KIND``,
+#: ``bot_grant_store.APP_BOT_GRANTS_KIND`` and ``protected_app_ui.APP_UI_KIND``; a
+#: test pins them. Only :data:`MIGRATED_KINDS` had an old layout under ``trust/``.
 RECORD_KINDS: tuple[str, ...] = (
     "member-rules",
     "member-goals",
@@ -56,6 +56,7 @@ RECORD_KINDS: tuple[str, ...] = (
     "app-secrets",
     "app-crons-deleted",
     "app-bot-grants",
+    "app-ui",
 )
 
 #: The kinds the one-time move carries from ``trust/``: the ones an older build kept
