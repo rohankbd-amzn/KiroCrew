@@ -650,6 +650,9 @@ def persist(
                     receipt.list_full += 1
                     continue
                 entry = proposal.entry(receipt.run)
+                # What each cited row looked like when proposed, so accepting later can
+                # refuse a proposal whose rows were edited since (memory_app_host).
+                entry["seen"] = {k: live[k].updated_at for k in proposal.keys if k in live}
                 if len(json.dumps(listed + added + [entry])) > _kind_log.SAMPLE_BYTES_CAP:
                     receipt.list_full += 1
                     continue
