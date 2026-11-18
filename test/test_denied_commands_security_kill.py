@@ -272,6 +272,29 @@ class TestSelfProtectionKillTargetScoping:
                 (f"X={_NAME}; $X>/tmp/x {_TOK}", _RULE_MINT),
                 (f"P={_PK}; $P -f {_NAME}", _RULE_KILL),
             ),
+            # PowerShell's `$name = value`, however its `=` or `;` is spaced, binds the name for a
+            # later use by the mint; a value that is not the verb keeps the command allowed.
+            # Bash runs the same words as a command or a test, so each line's bash reading
+            # is judged too and still refuses what it refused before.
+            *_named(
+                "test_powershell_assignment_resolves",
+                (f"$t = '{_TOK}'; {_NAME} $t", _RULE_MINT),
+                (f'$t = "{_TOK}"; {_NAME} $t', _RULE_MINT),
+                (f"$t='{_TOK}'; {_NAME} $t", _RULE_MINT),
+                (f"$t= '{_TOK}'; {_NAME} $t", _RULE_MINT),
+                (f"$t ='{_TOK}'; {_NAME} $t", _RULE_MINT),
+                (f"$t = 'doctor'; $t = '{_TOK}'; {_NAME} $t", _RULE_MINT),
+                (f"T=doctor; $T = '{_TOK}'; {_NAME} $T", _RULE_MINT),
+                (f"$x = '{_NAME}'; & $x {_TOK}", _RULE_MINT),
+                (f"$a = 'x';$t='{_TOK}';{_NAME} $t", _RULE_MINT),
+                (f"$t = 'doctor'; {_NAME} $t", None),
+                (f'[ "$m" = {_TOK} ] || {_NAME} $m', None),
+                (f"T={_TOK}; [ $T = doctor ] || {_NAME} $T", _RULE_MINT),
+                (f"T={_TOK}; $T = doctor; {_NAME} $T", _RULE_MINT),
+                (f"$t = 'x'; t+={_TOK}; {_NAME} $t", _RULE_MINT),
+                (f"T={_TOK}; $BASH = 'x'; echo \"{_NAME} $T\" | $BASH", _RULE_MINT),
+                (f"${_NAME} = 'x'; ${_NAME} {_TOK}", _RULE_MINT),
+            ),
             # A carrier's quoted script that assigns the name and then uses it is read
             # as a script of its own, so the assignment resolves inside it.
             *_named(
