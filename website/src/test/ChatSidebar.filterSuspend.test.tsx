@@ -201,6 +201,17 @@ describe('chat sidebar: pause and resume status filters', () => {
     expect(await utils.findByTestId('filter-pause-all')).toHaveTextContent('Resume all filters')
   })
 
+  it('only the paused Pinned chip explains that pinned sessions now follow the other filters', async () => {
+    localStorage.setItem(UNREAD_KEY, '2')
+    localStorage.setItem(PINNED_KEY, '2')
+    const utils = renderSidebar()
+    await utils.findByText('plain session')
+    expect(chipToggle(utils, 'pinned')).toHaveAttribute('title', 'Pinned sessions follow the other filters. Click to resume.')
+    expect(chipToggle(utils, 'unread')).toHaveAttribute('title', 'Resume Unread filter')
+    fireEvent.click(chipToggle(utils, 'pinned'))
+    await waitFor(() => expect(chipToggle(utils, 'pinned')).toHaveAttribute('title', 'Pause Pinned filter'))
+  })
+
   it('a MIXED "1" / "2" load keeps each filter as stored: the paused one lifted, the other narrowing', async () => {
     localStorage.setItem(UNREAD_KEY, '2')
     localStorage.setItem(PINNED_KEY, '1')

@@ -510,6 +510,40 @@ describe('a pinned session is exempt from the property filters', () => {
   })
 })
 
+describe('a paused Pinned chip lets the other status chips narrow pinned rows', () => {
+  const idlePin = local('idlepin', { pinned: true, tags: ['t1'] })
+  const runningPin = local('runpin', { pinned: true })
+  const folderRow = local('filed')
+  const plain = local('plain', { tags: ['t2'] })
+  const pausedPinned = { active: new Set<SessionFilterKey>(['running', 'pinned']), paused: new Set<SessionFilterKey>(['pinned']) }
+  const build = (filters: InputOverrides['filters']) => buildSidebarRows(inputs([idlePin, runningPin, folderRow, plain], {
+    local: { pinned: new Set(['idlepin', 'runpin']), running: new Set(['runpin']), folderOf: { filed: 'F1' } }, filters,
+  }))
+
+  it('drops a pinned row no unpaused chip matches, keeps one that matches, and drops the band caption', () => {
+    const rows = build({ status: pausedPinned })
+    expect(keys(rows.filteredSlots)).toEqual(['runpin'])
+    expect(rows.pinnedExemptNarrowing).toBe(false)
+    expect(rows.revealBlockingFilters[2].hides(idlePin)).toBe(true)
+  })
+
+  it('keeps the exemption while the Pinned chip is active', () => {
+    const rows = build({ status: { active: new Set<SessionFilterKey>(['running', 'pinned']) } })
+    expect(keys(rows.filteredSlots)).toEqual(['idlepin', 'runpin'])
+    expect(rows.pinnedExemptNarrowing).toBe(true)
+  })
+
+  it('leaves the folder-pin exemption in place', () => {
+    const rows = build({ status: pausedPinned, folders: { pinnedSubtree: new Set(['F1']) } })
+    expect(keys(rows.filteredSlots)).toEqual(['runpin', 'filed'])
+  })
+
+  it('leaves the tag filter exemption in place', () => {
+    const rows = build({ tags: { resolved: new Set(['t2']), raw: new Set(['t2']) }, status: { active: new Set<SessionFilterKey>(['pinned']), paused: new Set<SessionFilterKey>(['pinned']) } })
+    expect(keys(rows.filteredSlots)).toEqual(['idlepin', 'runpin', 'plain'])
+  })
+})
+
 describe('the status hides', () => {
   const running = local('run', { title: 'alpha' })
   const pinnedRunning = local('pinrun', { pinned: true, title: 'beta' })

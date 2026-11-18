@@ -649,6 +649,9 @@ function makeDimensions(
     return !!folderId && folderFilter.pinnedSubtree.has(folderId)
   }
   const pinnedBypass = (slot: Slot): boolean => matches.pinned(slot) || inPinnedFolder(slot)
+  // Paused Pinned withdraws only the row pin's status-chip exemption; tags and folder pins keep theirs.
+  const pinsExemptFromStatus = !(status.active.has('pinned') && status.paused.has('pinned'))
+  const statusBypass = (slot: Slot): boolean => (pinsExemptFromStatus && matches.pinned(slot)) || inPinnedFolder(slot)
   return [
     {
       // Tags. Unlike the folder filter this does NOT go inert while searching: it
@@ -696,15 +699,15 @@ function makeDimensions(
     },
     {
       // Status chips. Active chips OR together: a row passes when any active chip
-      // matches it. A pinned row passes whatever the chips say (see `pinnedBypass`).
+      // matches it. A pinned row passes unless the Pinned chip is paused (see `statusBypass`).
       // `hides` restates the exemption too: `excluded` is list membership, not this
       // dimension's verdict, so a pinned row the SEARCH dropped would otherwise read as
       // hidden by the chips and a reveal would clear them.
-      filtersRow: slot => activeStatus.length === 0 || pinnedBypass(slot) || activeStatus.some(key => matches[key](slot)),
+      filtersRow: slot => activeStatus.length === 0 || statusBypass(slot) || activeStatus.some(key => matches[key](slot)),
       narrows: () => activeStatus.length > 0,
-      exemptsPinned: true,
+      exemptsPinned: pinsExemptFromStatus,
       isSearch: false,
-      hides: (slot, excluded) => activeStatus.length > 0 && !pinnedBypass(slot) && excluded(slot),
+      hides: (slot, excluded) => activeStatus.length > 0 && !statusBypass(slot) && excluded(slot),
       clear: () => clears.status(),
     },
     {

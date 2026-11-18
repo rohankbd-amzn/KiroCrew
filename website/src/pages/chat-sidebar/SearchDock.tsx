@@ -206,7 +206,9 @@ export function renderSearchDock(shell: SidebarScope): { field: React.ReactNode;
     paused: pausedFilters.has(key),
     onToggle: () => toggleFilterPaused(key),
     pauseLabel: i18nT('pages.chatSidebar.pause_named_filter', { filter: filterLabel }),
-    resumeLabel: i18nT('pages.chatSidebar.resume_named_filter', { filter: filterLabel }),
+    resumeLabel: key === 'pinned'
+      ? i18nT('pages.chatSidebar.paused_pinned_chip_title')
+      : i18nT('pages.chatSidebar.resume_named_filter', { filter: filterLabel }),
     pausedText: i18nT('pages.chatSidebar.filter_paused_suffix'),
     pauseHint: i18nT('pages.chatSidebar.filter_chip_pause_hint'),
     resumeHint: i18nT('pages.chatSidebar.filter_chip_resume_hint'),

@@ -15311,6 +15311,7 @@
       "pinned_always_shown": "Épinglé · toujours affiché",
       "resume_all_filters": "Reprendre tous les filtres",
       "resume_named_filter": "Reprendre le filtre {{filter}}",
+      "paused_pinned_chip_title": "Les sessions épinglées suivent les autres filtres. Clique pour reprendre.",
       "filter_paused_suffix": "en pause",
       "filter_chip_pause_hint": "mettre en pause",
       "filter_chip_resume_hint": "reprendre",
