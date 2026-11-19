@@ -53,7 +53,7 @@ def fake_switch(monkeypatch: pytest.MonkeyPatch) -> str:
     monkeypatch.setattr(
         slack_manifest,
         "FEATURES",
-        (*slack_manifest.FEATURE_SCOPES, slack_manifest.SLACK_MCP),
+        (*slack_manifest.FEATURE_SCOPES, *slack_manifest.MANIFEST_ONLY_FEATURES),
     )
     monkeypatch.setattr(exfil, "_slack_manifest_re_slot", [])
     return _FAKE
@@ -86,6 +86,20 @@ class TestRendering:
         # agent_view is one-way, so only the Agent sessions switch declares it.
         assert "agent_view" not in slack_manifest.render("x", features=_CC)
         assert "agent_view" in slack_manifest.render("x", features=_AS)
+
+    def test_every_switch_has_a_bot_scope_or_is_manifest_only(self) -> None:
+        # A loop over FEATURES that indexes a switch's bot scope skips the
+        # manifest-only switches by name; it must then never KeyError.
+        from kiro_crew.slack.features import REQUIRED_SCOPE
+
+        gateway = set(slack_manifest.FEATURE_SCOPES)
+        manifest_only = set(slack_manifest.MANIFEST_ONLY_FEATURES)
+        assert slack_manifest.SLACK_MCP in manifest_only
+        assert gateway.isdisjoint(manifest_only)
+        assert set(slack_manifest.FEATURES) == gateway | manifest_only
+        for feature in slack_manifest.FEATURES:
+            if feature not in slack_manifest.MANIFEST_ONLY_FEATURES:
+                assert REQUIRED_SCOPE[feature]
 
     @pytest.mark.parametrize("combo", COMBOS)
     def test_no_gate_survives_rendering(self, combo: frozenset[str]) -> None:
