@@ -752,8 +752,12 @@ async def start_dashboard(
     defer_channel_agent_resume: bool = False,
     schedule_memory_preparation: "Callable[[DashboardState], asyncio.Task[None] | None] | None" = None,
     approval_mode: str | None = None,
+    headless: bool = False,
 ) -> tuple[web.AppRunner, DashboardState]:
-    """Start the dashboard web server.  Returns ``(runner, state)``."""
+    """Start the dashboard web server.  Returns ``(runner, state)``.
+
+    *headless* serves the API alone (``dashboard/headless.py``).
+    """
     # Channels retain this same runner on the gateway, independently of state.
     # Close shared admission before the first startup await, not just the UI pointer.
     if task_runner is not None:
@@ -1027,7 +1031,11 @@ async def start_dashboard(
     # and an early child callback waits instead of being refused. Binding here
     # also makes --port auto (port == 0) real before the spawn: every
     # boot-spawned backend gets the true origin, fixed and auto alike.
-    _dashboard_sock = await _reserve_dashboard_port(bind_address_for(local_only), port)
+    from kiro_crew.dashboard.headless import bind_address
+
+    _dashboard_sock = await _reserve_dashboard_port(
+        bind_address(headless, bind_address_for(local_only)), port
+    )
     runner: web.AppRunner | None = None
     try:
         _bind_ip = _export_reserved_bind_evidence(_dashboard_sock)
@@ -1110,17 +1118,19 @@ async def start_dashboard(
         _direct: GateRef | None = None
         _ssm_ref: SsmGateRef | None = None
         if _shared_crew_preview:
-            from kiro_crew.dashboard import tailnet_direct_listener
-
             if _cfg.dashboard.shared_crew.ssm:
                 # Only an SSM-enabled launch loads the SSM modules before the bind.
                 from kiro_crew.dashboard import ssm_gate
 
                 _ssm_ref = ssm_gate.GateRef()
 
-            _direct = tailnet_direct_listener.prepare_at_start(
-                _cfg, host=_tailnet_host, trust=_tailnet_trust, local_only=local_only
-            )
+            # A headless gateway opens no listener beyond loopback: no direct tailnet site.
+            if not headless:
+                from kiro_crew.dashboard import tailnet_direct_listener
+
+                _direct = tailnet_direct_listener.prepare_at_start(
+                    _cfg, host=_tailnet_host, trust=_tailnet_trust, local_only=local_only
+                )
         if _tailnet_host:
             logger.info(
                 "tailnet access enabled: trusting origin https://%s (bind and auth unchanged)",
@@ -1193,6 +1203,11 @@ async def start_dashboard(
         # ``asyncio.to_thread`` hop. Best-effort inside the helper: a
         # failed warm never blocks readiness.
         await warm_sel_singleton()
+
+        if headless:
+            from kiro_crew.dashboard.headless import HEADLESS_KEY
+
+            app[HEADLESS_KEY] = True
 
         # The ordered chain and the dashboard_url token-auth invariant live with the
         # headless chain in one owner, so the two cannot drift apart unseen.

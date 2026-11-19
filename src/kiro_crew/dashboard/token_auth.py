@@ -307,12 +307,16 @@ def token_auth_middleware(
             mark_audit_claimed(request)
             _log_auth(request, direct_peer.login, "denied", "tailnet direct: internal path")
             return _deny(request, "Forbidden"), wrapped
-        # An app credential, in the query or in the port's access cookie (an app
-        # UI's cookie session), runs the token flow so the app keeps its scope.
+        # An app credential, in the query, in the port's access cookie (an app
+        # UI's cookie session) or in a Crew API bearer, runs the token flow so the
+        # app keeps its scope.
         query_token = request.query.get("token") or ""
         cookie_token = request.cookies.get(f"mc_token_{_cookie_port_from_host(request, port)}", "")
-        if (query_token and claims_an_app_unverified(query_token)) or (
-            cookie_token and claims_an_app_unverified(cookie_token)
+        from kiro_crew.dashboard.crew_api_auth import crew_api_bearer
+
+        bearer_token = crew_api_bearer(request) or ""
+        if any(
+            t and claims_an_app_unverified(t) for t in (query_token, cookie_token, bearer_token)
         ):
             return None, wrapped
         # The owner's own Tailscale user gets the owner subject (tailnet_owner).
@@ -353,6 +357,10 @@ def token_auth_middleware(
         return await _token_flow(request, handler)
 
     async def _token_flow(request: web.Request, handler: object) -> web.StreamResponse:
+        # Function-local, as in ``_deny``: not part of the token_auth facade's surface.
+        from kiro_crew.dashboard import crew_api_auth
+        from kiro_crew.dashboard.crew_api_errors import is_crew_api_path
+
         path = request.path
 
         # A relay-delivered request (``dashboard/kiro_relay``): the relay is its
@@ -387,7 +395,7 @@ def token_auth_middleware(
         # byte-for-byte the existing token+IP behaviour.
         #
         # Gated on the request PRESENTING A CREDENTIAL (query token, an access
-        # or refresh cookie), not on where in the middleware it would be
+        # or refresh cookie, a Crew API bearer), not on where in the middleware it would be
         # consumed: a credential-less request (static assets, probes) can never
         # bind or satisfy a pin, so resolving identity for it would only hand
         # an unauthenticated local caller a header-driven daemon spawn. The
@@ -400,6 +408,7 @@ def token_auth_middleware(
             and (
                 bool(request.query.get("token"))
                 or any(c.startswith(("mc_token_", "mc_refresh_")) for c in request.cookies)
+                or bool(crew_api_auth.crew_api_bearer(request))
             )
         ):
             peer = await resolve_forwarded_peer(request, tailnet_trust)
@@ -545,22 +554,27 @@ def token_auth_middleware(
             ok, mismatch = check_token_peer(token, request_peer_key)
             if not ok and peer is None and mismatch != "IP mismatch":
                 mismatch = "tailnet identity unverified"
-            if ok and peer is not None and not _state.has_binding(token):
-                # For restart-persistent sessions the signed peer claim above
-                # has already proved this is the ORIGINAL device. Ordinary
-                # sessions retain the historical first-verified-peer behaviour.
-                # Scoped to resolved peers: re-pinning ip: keys would change
-                # app-token and multi-hop semantics that predate identity pins.
-                repin_key = request_peer_key
-                bind_token_peer(token, repin_key)
-                _sel_fn().log_api_access(
-                    caller=peer.login,
-                    forwarded=is_proxied_request(request),
-                    operation="tailnet_peer_bind",
-                    outcome="granted",
-                    source="token_auth",
-                    resources=f"{repin_key} (first-use re-pin)",
-                )
+            if ok and not _state.has_binding(token):
+                data = json.loads(_b64url_decode(token.split(".")[0]))
+                # A directly minted owner session takes the same first-use pin
+                # as an exchanged cookie, with its signed expiry. App credentials
+                # keep their own address semantics; verified peer pins still apply.
+                if peer is not None or (data.get("kind") == "session" and not data.get("app")):
+                    bind_token_peer(
+                        token,
+                        request_peer_key,
+                        float(data["session_exp"]),
+                        proxied=is_proxied_request(request) and peer is None,
+                    )
+                    if peer is not None:
+                        _sel_fn().log_api_access(
+                            caller=peer.login,
+                            forwarded=is_proxied_request(request),
+                            operation="tailnet_peer_bind",
+                            outcome="granted",
+                            source="token_auth",
+                            resources=f"{request_peer_key} (first-use re-pin)",
+                        )
             return ok, mismatch
 
         # Internal API paths: loopback + secret grants immediate access.
@@ -951,7 +965,18 @@ def token_auth_middleware(
         cookie_name = f"mc_token_{_cookie_port_from_host(request, port)}"
         token = request.query.get("token") or ""
         from_cookie = False
-        if not token:
+        bearer: str | None = None
+        if is_crew_api_path(path):
+            if "token" in request.query:
+                _log_auth(request, "", "denied", "query token on a Crew API path")
+                return _deny(request, crew_api_auth.QUERY_TOKEN_REFUSED)
+            bearer = crew_api_auth.bearer_credential(request)
+        if bearer is not None:
+            # Judged as a session, like the cookie, so ``from_cookie`` is set: no link
+            # exchange, no cookie minted, and no fall back to a cookie sent beside it.
+            token = bearer
+            from_cookie = True
+        elif not token:
             token = request.cookies.get(cookie_name, "")
             from_cookie = bool(token)
 
@@ -968,9 +993,12 @@ def token_auth_middleware(
             return _deny(request, "Token required")
 
         # Off the loop: the app-token check reads the app's install record.
-        valid, user_id, reason, app_name = await validate_token_with_app_off_loop(
-            token, use_session_exp=from_cookie
-        )
+        if bearer is not None:
+            valid, user_id, reason, app_name = await crew_api_auth.verify_bearer(token)
+        else:
+            valid, user_id, reason, app_name = await validate_token_with_app_off_loop(
+                token, use_session_exp=from_cookie
+            )
         if not valid and not from_cookie:
             # A stale ``?token=`` must not veto a still-valid session cookie.
             # Re-opening a bookmarked / previously-scanned link replays the

@@ -1859,6 +1859,54 @@ own guard against a failed `accept()`, reconciled against the live socket. A lat
 `clear_late_marker_write`, which never deletes a credential and touches nothing
 when the pid record names another process.
 
+### Consumer 3: preserve the gateway mode on CLI restart
+
+`gateway-mode.json`, in the run-marker directory, records boolean `headless`, the
+writer's positive integer `pid`, and optional string `start_token` for this data
+home's single gateway (`gateway.lock` owns that singleton). The token comes from
+`pid_start_token`, shared with the pid sidecars; if unreadable, only the pid is
+recorded, leaving pid reuse undetected when a token cannot be compared.
+On a headless start, `GatewayOrchestrator.run` awaits `write_gateway_mode` after the signing key preflight and
+before starting any service or listener; failure aborts boot. The headless write uses the signing-key preflight's
+daemon-worker mechanism and existing 30-second deadline, so a blocked headless write cannot hold up interpreter
+exit. A timeout logs critical, prints one stderr line naming the deadline and asking the owner to
+check data-home reachability, and raises `SystemExit(1)`.
+On an ordinary start it writes the record on a
+tracked background task once the listener is up; failure logs one warning and startup continues, leaving a
+stale record that can only say headless. Every start overwrites the field,
+including a normal start after a headless one and the reverse. This JSON sidecar
+reuses the run-marker directory without changing the plain launcher, pid or
+start-token formats that installed clients read. The background discovery writer
+never writes it, so a late discovery write cannot restore an old mode.
+
+`cli_server_restart._restart` reads it before stopping the foreground gateway.
+The pure `gateway_mode_decision` compares it to this home's live lock-holder
+identity: pid equality is required, and start-token equality is required when
+both tokens are readable. A missing pid or mismatched identity means stale:
+restart uses ordinary argv, and prints one warning only when the stale record
+said headless. Headless boot writes before
+listening or refuses to start, so a live gateway not named by the record is
+ordinary. In-app re-exec preserves argv and the successor rewrites its identity.
+With no live gateway, or an indeterminate lock probe, the record is retained.
+Known cost: an ordinary gateway whose write failed and then crashed can restart
+headless if an older record says headless. The service path makes the same
+comparison to the gateway holding the home lock after service restart, to choose
+API output or a sign-in link. It first waits, bounded by the restart readiness
+timeout, until a live gateway holds the lock and the record names it, because the
+replacement takes the lock before it publishes its record.
+Only `true` adds the fixed `--headless` flag to the detached replacement; no
+other launch flag comes from disk. An absent file or absent headless field means
+ordinary mode. A present non-object, malformed JSON, invalid mode or identity
+field, or read error other than not-found refuses before foreground stop or spawn.
+Stop, late marker cleanup and pruning leave the mode intact, so a retry after
+shutdown or a crash still preserves it; the next boot atomically replaces it.
+
+The gateway writes owner-only through `atomic_write` in the owner-only `run/`
+directory. The sandbox seals that directory read-only through its runtime-parent
+protection; agent file tools also deny it. The owner outside the sandbox and
+privileged host processes can change it. This is local owner state, not an
+independently authenticated claim: an owner who removes it chooses legacy mode.
+
 ### 12.1 The internal-API credential is keyed to one listener
 
 `<data-home>/run/gateway-<port>.secret` holds the internal-API credential of the

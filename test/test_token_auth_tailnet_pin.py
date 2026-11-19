@@ -588,11 +588,10 @@ async def test_restart_repin_covers_internal_mixed_paths(_tailnet_env) -> None:
 
 
 @pytest.mark.asyncio
-async def test_restart_unbound_cookie_without_peer_keeps_todays_semantics(
+async def test_session_first_use_without_verified_peer_binds_address(
     _tailnet_env,
 ) -> None:
-    """No verified peer (trust off): an unbound cookie stays unbound — the
-    pre-identity restart behaviour is byte-for-byte preserved."""
+    """An owner session keeps its first address when no verified identity resolves."""
     from kiro_crew.dashboard import token_auth as _ta
 
     _tailnet_env(_whois_payload())
@@ -601,4 +600,10 @@ async def test_restart_unbound_cookie_without_peer_keeps_todays_semantics(
     mark_consumed(token)
     resp = await mw(_make_request(cookies={"mc_token_5476": token}), _ok_handler)
     assert resp.status == 200
-    assert not _ta._state.has_binding(token)
+    assert _ta.check_token_peer(token, "ip:127.0.0.1") == (True, "")
+    assert _ta.check_token_peer(token, "ip:127.0.0.2") == (False, "IP mismatch")
+    replay = await mw(
+        _make_request(cookies={"mc_token_5476": token}, remote="127.0.0.2"), _ok_handler
+    )
+    assert replay.status == 403
+    assert b"IP mismatch" in replay.body
