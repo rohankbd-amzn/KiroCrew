@@ -14,6 +14,7 @@ from kiro_crew.dashboard.chat_delivery import (
     knowledge_meta,
     queued_text_for_display,
     quote_meta,
+    waiting_on_you_answer_view,
 )
 from kiro_crew.dashboard.chat_utils import (
     AUTOMATION_NOTICE_KIND,
@@ -529,6 +530,7 @@ def _requeue_unconsumed_steers(state: "DashboardState", slot: "_ChatSlot") -> No
             # card only: the entry and the row it drains into never carry it.
             _push_meta["requeuedSteer"] = True
             _push["meta"] = _push_meta
+            _push.update(waiting_on_you_answer_view(_meta))
             from kiro_crew.dashboard import responsive_chat as _rc
 
             _rc.mark_written_on_push(slot, qid, _push)

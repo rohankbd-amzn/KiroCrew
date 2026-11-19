@@ -164,6 +164,9 @@ async def api_chat_slot_queue_edit(request: web.Request) -> web.Response:
     _edit_attachments = attachment_meta(entry.get("meta")) if entry is not None else {}
     if _edit_attachments:
         frame["meta"] = _edit_attachments
+    from kiro_crew.dashboard.chat_delivery import waiting_on_you_answer_view
+
+    frame.update(waiting_on_you_answer_view(entry.get("meta") if entry is not None else None))
     edit_rev = entry.get("edit_rev") if entry is not None else None
     if isinstance(edit_rev, int):
         frame["editRev"] = edit_rev
