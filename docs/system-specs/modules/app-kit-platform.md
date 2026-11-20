@@ -540,7 +540,7 @@ maps each reply to an outcome: `ok`, `declined` (compaction), `refused` (a
 definite no), or `lost` (no answer). Both hosts pass `turnScoped` with the
 slot's turn identity (`turn_gen:turn`), so a reply to a press made in one turn
 is dropped once that turn is over: a slow refusal never shows its notice on
-the next turn (#34416). Only the embed passes the backend's `stop_declined`
+the next turn. Only the embed passes the backend's `stop_declined`
 marker.
 The embed has no WebSocket, so it reads
 the stop phase from the `stop_state` field of `GET /api/chat/slots/{slot}`, and
@@ -612,8 +612,7 @@ window the embed keeps warning of a reset that the next press will not perform
 (an over-warning, never a silent reset).
 
 A refused press shows one plain sentence, chosen by `stopRefusalCopy` in
-`useStopPress.ts` from the transport's `StopRefusal`, checked in this order
-(#20398, #24940):
+`useStopPress.ts` from the transport's `StopRefusal`, checked in this order:
 
 | Reason | Read from | Message (`components.chatPane.*`) | Detail line |
 |---|---|---|---|
@@ -946,7 +945,7 @@ file name. Changing the configured branch is therefore a cache MISS by
 construction, two same-name apps from different repositories never share (or
 poison) each other's cached metadata, and a failed fetch cannot silently
 attach a manifest cached for another branch or repo — the name-keyed
-predecessor could not establish provenance and did all three (#10145). The
+predecessor could not establish provenance and did all three. The
 registry-refresh sweep expires caches through the same path derivation, so a
 row whose coordinates changed in the new index expires the OLD coordinates'
 file via the prior index's row. Coordinate churn orphans the old files
@@ -1290,11 +1289,11 @@ Pinned by `test/test_app_lifecycle_reaches_open_chats.py`.
 ### 1a. The submission may not CREATE a name in the `<app>:<server>` region
 
 Every row above is about a name the submission **omits**. The mirror question is a
-name the submission **contains**, and until #7089 the answer was "persist it
-verbatim": an editor tab that loaded while an app was installed and running
-re-created that app's bridge on save after the app had been uninstalled or
+name the submission **contains**, and the naive answer is "persist it
+verbatim", and then an editor tab that loaded while an app was installed and running
+would re-create that app's bridge on save after the app was uninstalled or
 disabled. Same non-self-healing direction as above — reconciliation only revisits
-ENABLED apps — so the resurrected bridge stayed live and callable.
+ENABLED apps — so the resurrected bridge would stay live and callable.
 
 `_drop_unbacked_app_entries` closes it with one rule: **a submitted name containing
 `:` that the installed spec does not hold is dropped**, because that region is
@@ -1634,7 +1633,7 @@ up under the registered spec's file stem `<app>--<agent>`, the name the gateway 
 keeps (`AcpRuntime._pool_lookup`), at user level. An app agent's own MCP servers that
 kiro-cli starts begin in the empty launch directory, so one that relies on a relative
 path or its starting directory no longer finds the checkout there. Agent-by-path in
-kiro-cli (#22783) would retire the launch directory; until then it is the interim.
+kiro-cli would retire the launch directory; until then it is the interim.
 
 The copy is the registered spec's native skill
 view, the one every Kiro launch runs (`acp.skill_projection.project_agent_view`):
@@ -3952,7 +3951,7 @@ them reads the tier off a cached row:
   finish anyway; rows past it stay cold, and because every batch walks the index
   in order from the top a stable tail past the cap stays cold on later fetches
   too, so the overflow is logged once per batch with the index size and the cap.
-  Inside the cap the workers take the kept rows cold-first (#22090): a row whose
+  Inside the cap the workers take the kept rows cold-first: a row whose
   declared art is all in the blob cache (or recorded unobtainable) and that is not
   warm only because its manifest cache aged out goes after every row whose art is
   missing, index order kept inside each group (`_stale_row_art_present`, which
@@ -7822,7 +7821,7 @@ SEL-audited as `agent_turn` (`spawn_sdk._audit_spawn_denied`) and raises
 `AgentTurnRefused`, a `PermissionError`. With no policy and no profile both
 questions permit, so an ungoverned host runs as before. Every tool the agent calls
 is still gated. An app turn is not a person's, and no session applier reads its
-stream (#34341), so `run` streams with `person_only_directive_refuser`
+stream, so `run` streams with `person_only_directive_refuser`
 (`dashboard/session_directive_apply.py`, as a cron turn and a workflow step do): a
 completed `set_project`, `reset_conversation`, `chat_tag` or `suggest_followup`
 call is refused with `refuse_user_origin_directive` (its wording, and a SEL `denied`
@@ -8803,7 +8802,7 @@ app still is, and an owner that is no app (the summon hotkey) is never handed ov
 whatever an app is named. An owner opts in only once its own code stands down for the
 copy the host serves, or both would register the same chords and whichever came second
 would get none: Mochi's reservation stays plain until its built-in steps aside
-(`desktop-host-serve`, #37454). A chord another app or another program holds
+(`desktop-host-serve`). A chord another app or another program holds
 at that moment is not taken either: the app holding a chord keeps it for as long as it
 still declares that binding, whatever order the app list arrives in, and an app enabled
 later that declares the same chord gets it only once the holder lets it go. Each
@@ -9116,7 +9115,7 @@ a tunnel updates on its own. Over an adopted record, a shell without the window 
 `/app-windows/crew-companion/`, over the adopted routes. A 0.13.0-rc.1 shell's host
 refuses `displays`, `background` and `gutter`, so it drops the declaration whole and
 hosts nothing, and its built-in draws as before. From 0.13.0-rc.2 on, the built-in
-stands down on the record's non-`builtin` `origin` (#37430), and with this rule on its
+stands down on the record's non-`builtin` `origin`, and with this rule on its
 `desktop` block too, and the host draws the copy's windows. No shell draws both, and
 none draws anything while the app is off, so this pin does not wait for a later shell.
 The wheel's window pages are what the older shells draw, so they stay until no supported

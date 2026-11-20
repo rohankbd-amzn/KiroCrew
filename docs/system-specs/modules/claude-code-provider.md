@@ -315,7 +315,7 @@ and effort selection, the full `session/request_permission` flow) works. So
   agent-spec entry it rewrites. Emitting both would put two elements with one
   `name` in a single array: either the raw entry shadows the stub and the
   session bypasses the broker, or both register and every pooled backend runs
-  twice (#927). The client resolves `injection_server_names` for its overlay and
+  twice. The client resolves `injection_server_names` for its overlay and
   passes the set down; an unreadable overlay degrades to "no stubs", never to a
   session with no servers. The stub ELEMENTS come down the same call
   (`stub_elements`) and the mirror appends them itself -- the client's shared
@@ -458,7 +458,7 @@ source (user `settings.json`, project `.claude/settings.json`, or the managed
 `managed-settings.json` and its `managed-settings.d/*.json` drop-ins) already defines
 one; on a cold cache both keys are omitted, except for the covered names below. Claude Code's rule is that an allowlist
 entry naming a specific id disables that family's alias wildcard, so Crew's own list
-would cap `haiku` at Haiku 4.5 (issue #22995); a `model` key has no such effect. The
+would cap `haiku` at Haiku 4.5; a `model` key has no such effect. The
 adapter gives each literal `availableModels` entry one picker row, while the CLI also
 allows the newer models that a version prefix covers (`claude-opus-5` allows
 `claude-opus-5-5`). So when Crew writes its list it also names the keys of the user's
@@ -764,7 +764,7 @@ inherited"), which this path does not widen. The exclusion is never taken below
 `default`, `auto` or `bypassPermissions`, so neither case reaches the pin. A requested
 `auto` (or `bypassPermissions`) does take it: this path cannot keep that mode, so the
 pin moves the session to `default` like any other approving starting mode, and the
-session keeps Crew's tools in the asking mode instead of losing them all (#33829).
+session keeps Crew's tools in the asking mode instead of losing them all.
 
 With `KIROCREW_CC_PIN_INHERITED_MODE` on (`resolve_cc_pin_inherited_mode`; off by
 default, because it moves sessions out of a mode the user chose), the pin also runs on
@@ -793,9 +793,9 @@ The pin tests replay those answers.
 
 The array stays withheld when the session asked for a permission mode other than
 `default`, `auto` or `bypassPermissions`, since the pin sets only `default` (a request
-for `default` itself is what the pin sets, so it keeps the array, #13143; a request for
+for `default` itself is what the pin sets, so it keeps the array; a request for
 `auto` or `bypassPermissions` is one the pin moves to `default`, so it keeps the array
-and runs in `default`, #33829), when a project file's deny rules cannot be read
+and runs in `default`), when a project file's deny rules cannot be read
 (above), when the adapter is below the `settingSources` floor or reports no version,
 and when the path is a link (below). The floor is decided before the array exists: the
 claude adapter's launch reads the installed version (`_claude_adapter_installed_version`)

@@ -904,7 +904,7 @@ names that test; every other report-only row gives its plain reason:
 | `agent.chat_turn_timeout_secs` | 7200 -> 14400, #8949 | adopts | -- |
 | `agent.spawn_min_memory_gb` | 4.0 -> 2.0, #15890 | adopts | -- (the 4.0 inputs in the admission tests set a floor, they do not pin a stored 4.0 as supported; the opt-out is `0`, not the old default) |
 | `agent.kas_persist_mcp_sign_in` | false -> true, #28630 | adopts | -- (false was the default until this change, so the only value an owner had reason to write was true; a false set back after the one-shot adoption is kept as the opt-out) |
-| `agent.sandbox_allow_unsandboxed_exec` | false -> true on Windows, #9758 | adopts | -- (Windows outside pods only, owner decision 2026-11-03: with KAS the default a stored false leaves no agent session able to start, whether written unasked by a pre-0.6.0 save or on purpose, and kiro-cli confines no KAS process on Windows (#25154); elsewhere false is still the default and the row does not apply. `kirocrew setup`, `config set` and Settings saves ack a false they write, and a false set after the one-shot is kept. A Windows load (outside pods) that finds the key absent or `true` has nothing stale to drop, so `windows_exec_adoption.close_when_nothing_stale` acks `false` once; a false written after that, a hand edit included, is never adopted. The drop first writes the setup grant's critical SEL event (`config/windows_exec_adoption.py`) and keeps the false when that write fails; the row's `note` is appended to the adoption log line and doctor's adopted line) |
+| `agent.sandbox_allow_unsandboxed_exec` | false -> true on Windows, #9758 | adopts | -- (Windows outside pods only, owner decision 2026-11-03: with KAS the default a stored false leaves no agent session able to start, whether written unasked by a pre-0.6.0 save or on purpose, and kiro-cli confines no KAS process on Windows; elsewhere false is still the default and the row does not apply. `kirocrew setup`, `config set` and Settings saves ack a false they write, and a false set after the one-shot is kept. A Windows load (outside pods) that finds the key absent or `true` has nothing stale to drop, so `windows_exec_adoption.close_when_nothing_stale` acks `false` once; a false written after that, a hand edit included, is never adopted. The drop first writes the setup grant's critical SEL event (`config/windows_exec_adoption.py`) and keeps the false when that write fails; the row's `note` is appended to the adoption log line and doctor's adopted line) |
 | `session.autocompact_pct` | 90.0 -> 70.0, #4388 | reports | `test_a_persisted_ceiling_value_is_left_alone` |
 | `dashboard.loop_stall_exit_after_secs` | 25 -> unset, #6651 | reports | `test_explicit_desktop_default_is_preserved_for_managed_service` |
 | `stt.streaming` | false -> true, 0.5.0 | reports | `test_put_persists_streaming` |
@@ -1384,7 +1384,7 @@ address it. The overlay is read as the loader reads it (`read_endorsed_config_te
 shared with the `config defaults --adopt` report through `_read_overlay`. The
 overlay's value is what loads, and the warning points at `config get` and
 `config set --local`. The overlay's value is not printed. For a shadowed `agent.bot_name` the "will load as" sanitizer warning is
-left out, since the typed name does not load at all (#32802).
+left out, since the typed name does not load at all.
 
 ### Who owns an overlay key (`config/overlay_owners.py`)
 
@@ -1434,7 +1434,7 @@ Contract:
   exception: it is NOT stored whole. Each of its fields travels under its own
   wire key `mc-chat-config.<hex(field)>`, whose value is that one field's JSON
   fragment, so the server's existing per-KEY merge becomes a per-FIELD merge and
-  a profile uploads only the fields it actually changed (issue #15236; before
+  a profile uploads only the fields it actually changed (before
   this, a second origin holding one stale field uploaded the whole blob and
   overwrote fields it never touched). The field name is hex-encoded (`[0-9a-f]`,
   4 digits per code unit) for two reasons: a raw name could contain the `.`
@@ -2296,7 +2296,7 @@ Resolution order:
 1. `agent_name` is a key in `config.agents` (and the stated namespace is not
    `template`) — use that alias's bindings: template, workspace, memory store
    and model pin.
-2. otherwise a **template session** (#18328): `default_workspace`, Global Memory
+2. otherwise a **template session**: `default_workspace`, Global Memory
    V1 (`DEFAULT_MEMORY_STORE`), no Bot model pin, `resolved_alias` empty,
    `selection_kind="template"`. The template dispatched is `agent_name` when it
    is a **materialized kiro agent config** — a `*.json` under `~/.kiro/agents/`
@@ -2667,7 +2667,7 @@ Three properties, all pinned by tests:
 Consumers: the sidebar's session-row marker, and `mochi`'s `ensureSlot`, which
 refuses to send into a slot whose effective agent is someone else.
 
-Known follow-up (#1429): the snapshot makes this module a second home for agent
+Known follow-up: the snapshot makes this module a second home for agent
 discovery beside `apps/registry`.
 
 ### `KiroCrewConfig.create_provider_factory() -> Callable`
@@ -3349,7 +3349,7 @@ caller, and replays only when it was built with `config=` (a raised
 store keeps its constructor defaults at construction. The other `watch_object`
 owners that copy caller-loaded config before registering (`cron_history.py`,
 `subagent_parts/manager.py`, `history_consolidation.py`, `adaptive/controller.py`,
-`slack/gateway_runtime/admission.py`) keep the registration gap; they are out of scope for #10889.
+`slack/gateway_runtime/admission.py`) keep the registration gap; they are out of scope here.
 
 ### The point-of-use read
 
@@ -3475,7 +3475,7 @@ gateway's root-attached handler at the root logger's WARNING), so the runtime
 change reaches the file with nothing else to update. The handlers used to hold
 a boot-time copy of the level that nothing updated, so a gateway booted at
 WARNING dropped its raised INFO records before the file until a restart while
-the live Logs stream showed them (#14231); a level re-added to either handler
+the live Logs stream showed them; a level re-added to either handler
 is that bug again, and `test_cli_logging.py` pins the contract.
 Both model appliers rebuild the installed agent specifications before the
 watcher finishes dispatching the change. After a successful `agent.model`
@@ -4814,7 +4814,7 @@ membership: `context.ui_language_tag()` checks the tag against
 `context._UI_LANGUAGE_CATALOGS` (a mirror of the non-dev-only
 `SUPPORTED_LANGUAGES` entries) and treats a non-catalog tag exactly like
 `""`/Auto — no `[UI LANGUAGE]` steer is emitted, so the agent is never steered
-to a language the chrome cannot render (#1130). Adding a language is therefore
+to a language the chrome cannot render. Adding a language is therefore
 the frontend edits [website/docs/i18n-catalog.md](../../../website/docs/i18n-catalog.md)
 owns **plus one mechanical backend entry** in `_UI_LANGUAGE_CATALOGS`, which the drift gate in
 `test/test_context_ui_language.py` names explicitly on failure.

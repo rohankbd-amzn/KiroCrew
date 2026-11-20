@@ -112,7 +112,7 @@ like `_bg`; other unrecognized session keys retain the legacy `slack` fallback.
   session-identity sidecars and driving state-mutating MCP tools against
   another session (cross-session state mutation). The likelihood of compromise
   is unchanged (same sensitive-path floor); the *impact* grew, and any future
-  hardening of this key (the out-of-process signer above, issue #302) must
+  hardening of this key (the out-of-process signer above) must
   treat `session_pid_sig` as a dependent of equal weight. See
   `docs/system-specs/modules/session.md` for the sidecar contract.
 
@@ -129,7 +129,7 @@ paths await `warm_sel_singleton()` (an `asyncio.to_thread(sel)`, best-effort)
 before building the middleware chain, so when the warm succeeds
 `_init_locked` — blocking file I/O — never runs on the event loop as a
 handler's first touch, and non-critical call sites need no per-site thread
-hop (#8608). A failed warm logs a warning and leaves that init retry to the
+hop. A failed warm logs a warning and leaves that init retry to the
 first later touch, on its caller's thread. `critical=True` writes are
 synchronous by design and their call sites still offload themselves when
 reached from the loop.

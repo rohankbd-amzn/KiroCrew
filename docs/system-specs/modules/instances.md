@@ -648,7 +648,7 @@ spawns and supervises no process. The sleep inhibitor registers too
 keeps, so the helper would hold the block for the new image as well. Its stop
 cancels the prevent-sleep poll, so the poll cannot engage the block again, and
 releases the block. The poll arms it after setup and the prevent-sleep cleanup
-hook unregisters it. The browser view child (#19140) is the next owner that
+hook unregisters it. The browser view child is the next owner that
 should register.
 
 A restart that lands while a `connect()` holds the manager lock across a slow
@@ -1073,7 +1073,7 @@ what its own edit invalidated, and never reopens anything on the user's behalf.
 ### The Remote Crew page
 
 `RemoteCrewPanel` (`website/src/pages/settings/`) draws three sections and one
-modal (#38790):
+modal:
 
 - **My Crews** — every crew this gateway added or launched, and a launch still
   creating its machine. The header carries the count, Refresh and **+ Add Crew**.
@@ -1500,7 +1500,7 @@ On a host with no sandbox backend and `allow_unsandboxed_exec` unset that raises
 the preflight, the task read and stop/start/delete answer it as a `503` carrying
 `code: sandbox_unavailable`, the exception's `kind`, `detail` and `remedy`, and
 an `error` that says the credentials were not checked and points at `kirocrew
-doctor` (#32068). The setup form keys on the code to show that sentence in the
+doctor`. The setup form keys on the code to show that sentence in the
 reader's language. When the preflight fails for any reason, its no-result line
 says the check did not run instead of "check your credentials".
 

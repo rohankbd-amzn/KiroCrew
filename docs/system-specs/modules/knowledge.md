@@ -710,7 +710,7 @@ with user data. Production retrieval still requires the active signature.
 A `bedrock_kb` source points at one or more **Amazon Bedrock Knowledge Bases**
 in the user's own AWS account and holds **no local items**: the KB keeps its
 own index and embeddings, so Kiro Crew queries it live at search time instead
-of ingesting it (issue #7947). Consequences, in the order the code enforces
+of ingesting it. Consequences, in the order the code enforces
 them:
 
 - **Config, no secrets.** `properties` carry `kb_ids` (comma-separated; a

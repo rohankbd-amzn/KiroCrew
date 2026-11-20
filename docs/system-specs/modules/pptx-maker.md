@@ -442,7 +442,7 @@ install (no marker) correctly reads as "not installed".
 
 It also requires the tree's `mcp-local/uv.lock` to hash to `ENGINE_LOCK_SHA256`,
 the lock inside the pinned archive. Every `uv` call installs that lock as-is, so a
-lock rewritten after install (#29225: a `uv run` without `--frozen` moves `mcp` to
+lock rewritten after install (a `uv run` without `--frozen` moves `mcp` to
 2.x, which the server cannot import) would be reinstalled by every provision. Such a
 tree reads as not installed instead: the banner offers provisioning again, and that
 run re-fetches the tree and rebuilds its venv with `uv sync --frozen`. Pinned by
