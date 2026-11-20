@@ -1,6 +1,6 @@
 """Example dynamic workflow: exhaustive bug hunt (loop-until-dry + budget).
 
-Demonstrates two relevant to Kiro Crew patterns at once:
+Demonstrates two patterns relevant to Kiro Crew at once:
   - loop-until-dry: keep fanning out finders until K consecutive clean rounds
   - loop-until-budget: stop early if the token budget runs low
 
@@ -77,11 +77,11 @@ async def workflow(ctx):
             seen.add(_key(b))
 
         ctx.phase("Judge")
-        judged = await ctx.parallel(
+        verdicts = await ctx.parallel(
             [lambda b=b: ctx.agent(f"Is this a real bug? {b['desc']}", schema=VERDICT)
-             .then(lambda v, b=b: (b, v)) for b in fresh]
+             for b in fresh]
         )
-        confirmed += [b for (b, v) in judged if v and v["real"]]
-        ctx.log(f"{len(confirmed)} confirmed; {ctx.budget.remaining() // 1000}k tokens left")
+        confirmed += [b for b, v in zip(fresh, verdicts) if v and v["real"]]
+        ctx.log(f"{len(confirmed)} confirmed; {ctx.budget.remaining()} tokens left")
 
     return {"confirmed": confirmed, "total_seen": len(seen), "dry_rounds": dry}
