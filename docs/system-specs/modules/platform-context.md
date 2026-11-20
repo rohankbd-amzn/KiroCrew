@@ -750,8 +750,8 @@ Wired sites:
   sign-in verbs, but as one `❌ <error>` line plus a `kirocrew doctor` hint and exit 1, not a
   traceback (an LTS build's policy refusal exits through `refuse_policy_boot` first).
 - `slack/gateway_runtime/service_boot.py` gateway boot — `AgentRuntime.run_first_run_setup()` through
-  `safe_context_call`. Previously this imported `agent.run_first_run_setup`
-  directly, bypassing the seam; routing it through the context makes first-run
+  `safe_context_call`, never a direct import of `agent.run_first_run_setup`,
+  which would bypass the seam; routing it through the context makes first-run
   provisioning genuinely extensible (an edition adds its own one-time steps).
   The Default adapter delegates to that same function, so standalone behavior is
   byte-identical — asserted in `test_cpp_wiring_standalone.py`
