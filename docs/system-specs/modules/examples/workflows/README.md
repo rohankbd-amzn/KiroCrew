@@ -38,6 +38,6 @@ Caveats worth knowing before you copy one:
   script before exec with
   `where="validate"`. It documents the intended native-port surface, and it needs a
   host that wires those ports.
-- The two `ctx.budget.remaining()` early stops read a counter nothing currently
-  increments (see the Budget open question in the module spec), so on today's
+- The `ctx.budget.remaining()` early stop in `02_loop_until_dry_bug_hunt.py` reads
+  a counter nothing currently increments (see the Budget open question in the module spec), so on today's
   engine that branch never fires.
