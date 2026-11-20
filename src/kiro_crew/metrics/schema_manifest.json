@@ -1263,6 +1263,7 @@
           "values": [
             "catalog",
             "curated",
+            "exploratory",
             "generated",
             "other"
           ]
