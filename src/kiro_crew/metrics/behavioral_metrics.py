@@ -56,6 +56,8 @@ _SHAPES: "Dict[str, Tuple[str, Optional[str], Optional[str]]]" = {
     "kirocrew.app.uninstalled": ("app", None, "app"),
     "kirocrew.app.session_started": ("app", None, "app"),
     "kirocrew.app.run_time": ("app", None, "app"),
+    "kirocrew.app.opened": ("app", None, "app"),
+    "kirocrew.app.foreground_time": ("app", None, "app"),
 }
 
 #: The reviewed behavioral metrics: a subset of ``PRODUCT_METRICS``.
