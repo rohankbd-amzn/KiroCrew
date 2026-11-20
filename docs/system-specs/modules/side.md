@@ -861,7 +861,7 @@ call (`read_only_policy_no_hooks`). The gate runs its deny floor and
 governance first; then only the
 read-only classifier may auto-approve, and its verdict carries
 `ToolHookResult.read_only`. The gate is asked `classifier_only`, so the
-operator's `auto_approve_tools` globs and the app-own-server rule are skipped
+operator's `auto_approve_tools` globs and the app-own-server and app-own-tools rules are skipped
 rather than honoured (they vouch for the caller, not for the call's effect),
 and an auto-approve without the tag is rejected. A grant that shadows a read
 therefore still gets the read approved; a grant that shadows a write approves
@@ -1110,7 +1110,7 @@ Wire Protocol), alongside the existing subagent/tool dispatch cases.
 
 | Concern | Mitigation |
 |---------|-----------|
-| Tool execution | System prompt prohibition + READ_ONLY approval policy: only the read-only classifier's verdict approves, and under `classifier_only` that verdict rests on host-trusted facts alone (`is_read_only_bash` on the recovered shell command, or a `_HOST_READ_ONLY_BUILTIN_TOOLS` name on the non-model-authored `_meta.kiro.toolName` — or, on claude, mapped from the adapter-stamped `_meta.claudeCode.toolName` of the call's `tool_call` frame — with no MCP server); the agent-influenced ACP `kind` and title may narrow but never prove; operator `auto_approve_tools` globs and app-own-server grants are skipped and an unclassified auto-approve is rejected |
+| Tool execution | System prompt prohibition + READ_ONLY approval policy: only the read-only classifier's verdict approves, and under `classifier_only` that verdict rests on host-trusted facts alone (`is_read_only_bash` on the recovered shell command, or a `_HOST_READ_ONLY_BUILTIN_TOOLS` name on the non-model-authored `_meta.kiro.toolName` — or, on claude, mapped from the adapter-stamped `_meta.claudeCode.toolName` of the call's `tool_call` frame — with no MCP server); the agent-influenced ACP `kind` and title may narrow but never prove; operator `auto_approve_tools` globs and app-own-server and app-own-tools grants are skipped and an unclassified auto-approve is rejected |
 | Governance identity | The gate runs under the side session's own key `side:<slot>:<gen>`, which `sel._infer_source` classifies as the `dashboard` surface, so a profile bound to `surface: dashboard` binds side turns exactly as it binds the parent slot |
 | Memory pollution | No calls to memory/learn/save; sidecar never serialised |
 | Context leak to main | The side envelope is built by `side_context.build_side_message`, never through `ContextBuilder.build_message`, and the side path never writes `slot.messages` (a review-time rule, see Testing) |

@@ -4359,7 +4359,7 @@ content. Answer drafts remain outside the frames.
 
 ### Agent Questions (`ask_question`)
 
-`ask_question` is **blocking**: the MCP tool opens a question card on the calling session's own dashboard slot and holds the tool call until the user responds, and the user's answers return as the tool's **result** — the agent continues in the same turn and never receives them as a user message. That is the point of the design: question text is agent-authored, and echoing it back inside a user-role turn (the former non-blocking directive of issue #755, whose applier `session_directive_apply.py::_ask_question` is gone) handed that text the user's authority. User-facing documentation lives in `src/kiro_crew/docs/agent-questions.md`; this section is the contract.
+`ask_question` is **blocking**: the MCP tool opens a question card on the calling session's own dashboard slot and holds the tool call until the user responds, and the user's answers return as the tool's **result** — the agent continues in the same turn and never receives them as a user message. That is the point of the design: question text is agent-authored, and echoing it back inside a user-role turn would hand that text the user's authority, so no session directive applies a question. User-facing documentation lives in `src/kiro_crew/docs/agent-questions.md`; this section is the contract.
 
 The tool (`mcp_tools/control.py::ask_question`) resolves its session key through the strict sidecar resolver as a context guard — an empty key or a non-dashboard surface gets a plain-text result telling the agent to ask in text or end with an `[OPTIONS:]` tag — then validates its arguments (`ASK_QUESTION_SCHEMA` plus `validate_ask_user_question`) and drives three MACHINE routes under `/api/agent-ask` (`handlers/ask_question.py`). They are STRICT internal paths (X-Internal-Secret, no cookie fall-through; `dashboard/server_internal_paths.py`), and the caller's identity is the **attested** `X-Session-Key` (`member_memory_auth.session_key_is_attested`), never a body field: the card goes to the slot of the session making the call, and a wait or withdraw for an ask another session opened is `404 question_not_found`. Every authorization denial — unattested caller, non-dashboard session origin, cross-session `ask_id` conflict, and cross-session wait or withdraw — is SEL-audited through one response helper (`log_api_access` with `source="agent_ask"`, `resources="/api/agent-ask"`, `outcome="denied"`); validation failures and a genuinely missing ask are not authorization events and emit no denial audit. During a gateway-side directive replay (`directive_capture_active()`) the tool returns `""` and opens nothing, because a loopback POST from the gateway's own event loop can never be serviced.
 
@@ -5027,7 +5027,7 @@ the cumulative count nor the consecutive streak. Charging it would retire a
 healthy watch on the cadence of work that never touched its subject, and clearing
 the streak instead would be the opposite defect — a provider failing on alternate
 ticks with a cooldown between would blind the watch for ever. BOTH counting sites
-separate the three, and they have to: `shadow.py::apply_monitor_probe` is the
+separate the three, and they have to: `shadow.py::run_shadow_probe` is the
 shadow path, and `autonudge.AutoNudgeService.apply_monitor_probe` (defined in
 `autonudge_service/monitor_records.py`) is the one a wired controller drives, so a
 rule held in only one of them is a rule held

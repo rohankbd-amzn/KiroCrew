@@ -1426,7 +1426,7 @@ verified. The transport signal instead feeds the identity-only lane: the
 The same identity is what an identity-keyed grant matches for such a child —
 the hook gate's `auto_approve_tools` pattern (matched against
 `@server/tool` rendered from the identity, never the title, for an
-MCP-identified call) and app-own-server grant, reported as
+MCP-identified call) and the app-own-server and app-own-tools grants, reported as
 `ToolHookResult.identity_grant`, and the TrustDropdown's `approval_command`
 key — so the user's narrow allowance covers the child's call to that tool
 without a session-wide trust grant (`security.md` § Child-fidelity split).

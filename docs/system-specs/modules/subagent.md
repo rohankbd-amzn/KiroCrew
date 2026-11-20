@@ -1993,7 +1993,7 @@ auto-approves — the call site reads the hoisted
 no agent-authored event data, only the
 arguments remain unverified. For such a child it is tried BEFORE the hook's
 grant. The hook's identity-keyed grant (`ToolHookResult.identity_grant`: the
-app-own-server rule, or an `auto_approve_tools` pattern matched against
+app-own-server or app-own-tools rule, or an `auto_approve_tools` pattern matched against
 `@server/tool`) also stands, audited as `hook_identity_auto_approve`, because its
 matched input is that same verified identity. Every other hook auto-approve
 (title-pattern-matched) and every content-matching path stay fail-closed on the
