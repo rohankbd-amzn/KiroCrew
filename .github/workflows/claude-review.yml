@@ -286,6 +286,18 @@ jobs:
             echo "active=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # A pull request that changes nothing but prose docs has no code for this
+      # lane to review, so it skips every review step the way a Dependabot PR
+      # does, posts nothing, and the gate passes. PR Readiness applies the same
+      # rule (.github/scripts/docs_only.py). docs-lint, the Internal Content
+      # Scan and PR Hygiene still judge the prose.
+      - name: Decide docs-only scope
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        id: docs_only
+        uses: ./.github/actions/docs-only-scope
+        with:
+          token: ${{ github.token }}
+
       # Dependabot PRs run with a read-only token and NO access to repo
       # secrets / OIDC, so the AWS role assumption can never succeed. Skip the
       # credential + review steps and let the gate pass; dependency bumps stay
@@ -294,7 +306,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         with:
           role-to-assume: ${{ secrets.AWS_BEDROCK_ROLE_ARN }}
@@ -347,7 +359,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         uses: anthropics/claude-code-action@2dca132ff0e0c4094ce6048b422c6915a071210b # v1.0.247
         with:
@@ -548,7 +560,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         with:
           role-to-assume: ${{ secrets.AWS_BEDROCK_ROLE_ARN }}
@@ -565,7 +577,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         uses: anthropics/claude-code-action@2dca132ff0e0c4094ce6048b422c6915a071210b # v1.0.247
         with:
@@ -697,10 +709,11 @@ jobs:
           OVERRIDE_ACTOR: ${{ steps.human_override.outputs.actor }}
           OVERRIDE_SOURCE: ${{ steps.human_override.outputs.source }}
           ACTOR: ${{ github.actor }}
+          DOCS_ONLY: ${{ steps.docs_only.outputs.docs_only }}
           BUDGET_SPENT: ${{ steps.budget.outputs.spent }}
         run: |
-          if [ "$ACTOR" = "dependabot[bot]" ] && [ "$HUMAN_OVERRIDE" != "true" ]; then
-            echo "Dependabot PR: no review ran; nothing to post."
+          if { [ "$ACTOR" = "dependabot[bot]" ] || [ "$DOCS_ONLY" = "true" ]; } && [ "$HUMAN_OVERRIDE" != "true" ]; then
+            echo "Dependabot or docs-only PR: no review ran; nothing to post."
             exit 0
           fi
           kind="incomplete"
@@ -1362,12 +1375,17 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
           REVIEW_OUTCOME: ${{ steps.review.outcome }}
           ACTOR: ${{ github.actor }}
+          DOCS_ONLY: ${{ steps.docs_only.outputs.docs_only }}
           HUMAN_OVERRIDE: ${{ steps.human_override.outputs.active }}
           OVERRIDE_ACTOR: ${{ steps.human_override.outputs.actor }}
           BUDGET_SPENT: ${{ steps.budget.outputs.spent }}
         run: |
           if [ "$HUMAN_OVERRIDE" = "true" ]; then
             echo "Human judgment by $OVERRIDE_ACTOR overrides Opus 5.5 for $HEAD. Passing gate."
+            exit 0
+          fi
+          if [ "$DOCS_ONLY" = "true" ]; then
+            echo "Docs-only PR: Opus 5.5 AI review skipped (prose docs only, no code to review). Passing gate."
             exit 0
           fi
           if [ "$ACTOR" = "dependabot[bot]" ]; then

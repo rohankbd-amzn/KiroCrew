@@ -124,6 +124,9 @@ _NOT_BEHIND_LINT: dict[str, str] = {
     "lockfile-engines-floor": "10-minute lockfile check; cheaper than the wait",
     "cfn-lint": "10-minute template lint; gives its own early verdict",
     "metrics-schema-history": "stdlib manifest diff against the base; seconds, no install",
+    # Runs only when `lint-gate` is skipped on purpose: a docs-only pull
+    # request has no code to lint, and this job is its whole test verdict.
+    "docs-contract-tests": "docs-only pull requests skip lint-gate; this is their test lane",
     # These two hold the baselined ratchets. They are OFF the gate path
     # deliberately, and the trade is real: a ratchet failure does not SAVE the
     # matrix, it reds the pull request alongside it. What is bought is the

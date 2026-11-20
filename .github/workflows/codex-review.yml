@@ -261,6 +261,18 @@ jobs:
             echo "active=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # A pull request that changes nothing but prose docs has no code for this
+      # lane to review, so it skips every review step the way a Dependabot PR
+      # does, posts nothing, and the gate passes. PR Readiness applies the same
+      # rule (.github/scripts/docs_only.py). docs-lint, the Internal Content
+      # Scan and PR Hygiene still judge the prose.
+      - name: Decide docs-only scope
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        id: docs_only
+        uses: ./.github/actions/docs-only-scope
+        with:
+          token: ${{ github.token }}
+
       # Dependabot PRs run with a read-only token and NO access to repo
       # secrets / OIDC, so the Bedrock role assumption below can never succeed.
       # Skip all review work and let the gate pass (see "Gate on findings").
@@ -272,7 +284,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -323,7 +335,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
@@ -331,7 +343,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         run: |
           mkdir -p "$HOME/.codex"
@@ -355,7 +367,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -703,7 +715,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         with:
           role-to-assume: ${{ secrets.AWS_CODEX_BEDROCK_ROLE_ARN }}
@@ -713,7 +725,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         env:
           AWS_REGION: us-east-1
@@ -805,7 +817,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         with:
           role-to-assume: ${{ secrets.AWS_CODEX_BEDROCK_ROLE_ARN }}
@@ -816,7 +828,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          github.actor != 'dependabot[bot]' && steps.human_override.outputs.active != 'true'
+          github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true' && steps.human_override.outputs.active != 'true'
           )
         env:
           AWS_REGION: us-east-1
@@ -1009,7 +1021,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          always() && github.actor != 'dependabot[bot]'
+          always() && github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true'
           )
         env:
           REDACTOR: ${{ steps.redactor.outputs.redactor }}
@@ -1577,7 +1589,7 @@ jobs:
         if: >-
           github.event.pull_request.head.repo.full_name == github.repository
           && (
-          always() && github.actor != 'dependabot[bot]'
+          always() && github.actor != 'dependabot[bot]' && steps.docs_only.outputs.docs_only != 'true'
           )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -2478,6 +2490,7 @@ jobs:
         env:
           HEAD: ${{ github.event.pull_request.head.sha }}
           ACTOR: ${{ github.actor }}
+          DOCS_ONLY: ${{ steps.docs_only.outputs.docs_only }}
           HUMAN_OVERRIDE: ${{ steps.human_override.outputs.active }}
           OVERRIDE_ACTOR: ${{ steps.human_override.outputs.actor }}
           REFUSED: ${{ steps.gpt_pass2.outputs.refused }}
@@ -2486,6 +2499,10 @@ jobs:
         run: |
           if [ "$HUMAN_OVERRIDE" = "true" ]; then
             echo "Human judgment by $OVERRIDE_ACTOR overrides GPT 6.1 for $HEAD. Passing gate."
+            exit 0
+          fi
+          if [ "$DOCS_ONLY" = "true" ]; then
+            echo "Docs-only PR: GPT 6.1 AI review skipped (prose docs only, no code to review). Passing gate."
             exit 0
           fi
           if [ "$ACTOR" = "dependabot[bot]" ]; then
