@@ -2037,7 +2037,7 @@ place. Tests build one in memory, holding what the read stage would produce, and
 call `build_config` with no config file on disk.
 
 **Section construction.** Compound section constructors run in small private
-helpers: `config/section_builders.py` holds 28 of them and `config/loader_builders.py`
+helpers: `config/section_builders.py` holds 31 of them and `config/loader_builders.py`
 keeps the agent, session, telemetry and dashboard ones (see the Overview); the
 loader facade re-exports all of them. This bounds each construction frame instead of
 putting every field expression in one large traced resolver frame. The helpers
@@ -2312,7 +2312,7 @@ Resolution order:
 A plain session — no `agent_name` — is rung 2 with the default template. It is
 never the `default` Bot: `config.default_agent` names the roster's default
 Bot and is not read here, so that row's workspace, store and model pin stay
-its own. There is no "first available alias" fallback any more.
+its own. There is no "first available alias" fallback.
 
 Before plain sessions were template sessions they ran the template of the
 roster default's row (the top-level `default_agent`), and an upgraded document
@@ -2700,12 +2700,8 @@ through `run_config_write(update_config_locked, config_path(), mutate=...)`.
 `test_config_save_locking.py::TestNoDashboardModuleSavesTheWholeConfig` pins
 that over `src/kiro_crew/dashboard`, matching a `.save` REFERENCE handed to an
 offloader as well as a call, with an empty baseline. The workspace display PUT
-(`PUT /api/config/theme`) was the last such writer: it loaded the whole config
-and saved it back, so on a momentarily unreadable file (a torn read, a sharing
-violation, an empty file) it published pure defaults over every setting
--- from a request the SPA sends on its own at boot, because a defaults load
-reports `onboarded=false` and that triggers its legacy theme migration. It now
-validates the whole body first (a 400 writes nothing), writes only the named
+(`PUT /api/config/theme`), which the SPA sends on its own at boot when a defaults
+load reports `onboarded=false`, validates the whole body first (a 400 writes nothing), writes only the named
 `dashboard.*` keys (skipping the write when they already hold those values),
 answers an unreadable file with `500 {"code": "config_unreadable"}` and the bytes
 untouched, and builds its response from a fresh load.
@@ -2736,10 +2732,7 @@ observes a half-written file. The window is small, which is exactly what made th
 resulting loss so hard to reproduce — it presented as "all my settings reset
 themselves".
 
-The last product writer of that shape was the voice settings PUT
-(`PUT /api/voice/config`), which read with `json.load` and wrote back with
-`open(path, "w")` + `json.dump` -- no lock, no meta stamp, no live-watcher wake,
-and every failure swallowed behind `{"ok": true}`. It now persists through
+The voice settings PUT (`PUT /api/voice/config`) persists through
 `run_config_write(update_config_locked, ...)`, merging only the keys the request
 named into the existing `voice_reply` block, BEFORE it applies them to the live
 voice config, so a refused write (`500 config_corrupt` on an unreadable file,
@@ -2772,15 +2765,10 @@ file (security.md, the pin's recreation table). A record that cannot be written 
 ahead, so the pin refuses as it always did; when it can be neither written nor removed, the
 save itself is refused rather than leave an older file vouched for.
 
-That is a reversal of an earlier ruling recorded here, and the reason it changed
-is worth keeping: the lockdown used to shell out to `icacls`, a blocking
-subprocess this function could not afford because it runs inside async request
-handlers and `save()` (`no-blocking-call-on-event-loop`). It is now applied
-in-process through `advapi32` (measured 0.24 ms against 313 ms for the
-subprocess), so the cost that forced the omission is gone and `config.json` --
-which can hold inline provider tokens -- is no longer left under whatever DACL it
-inherits from its parent. Follow-up work that touches the other owner-only call
-sites should treat this as settled rather than re-deriving the old constraint.
+The DACL is applied in-process through `advapi32` (measured 0.24 ms against 313 ms
+for an `icacls` subprocess), so it costs nothing that matters inside async request
+handlers and `save()` (`no-blocking-call-on-event-loop`), and `config.json` --
+which can hold inline provider tokens -- does not inherit its parent's DACL.
 
 **Mode preservation is POSIX-only.** `atomic_write`'s `mode` routes through
 `fchmod_safe`, a documented no-op on Windows, where access is carried by the DACL
@@ -3019,12 +3007,10 @@ installation's maintenance instructions and explicit new requests.
 ## Live config: one watcher, one applier registry
 
 `config/live.py` is the single mechanism by which a write to `config.json`
-reaches the objects that already copied a value out of it. Before it, a
-long-lived object built at boot (a session manager's idle timeout, a channel
-transport's allow-list, a workflow ceiling) kept its boot copy forever unless the
-particular writer happened to know that copy existed — so `kirocrew config set`,
-a dashboard save and an `$EDITOR` edit each hot-applied a *different* subset of
-fields, and every other field was silently inert until the next restart.
+reaches the objects that already copied a value out of it. A long-lived
+object built at boot (a session manager's idle timeout, a channel transport's
+allow-list, a workflow ceiling) adopts a change through it, so `kirocrew config
+set`, a dashboard save and an `$EDITOR` edit all hot-apply the same fields.
 
 Three parts, each deliberately singular:
 
@@ -3058,15 +3044,10 @@ is always old-vs-newer and an applier never sees an out-of-order pair.
 
 ### `.env` credential hot-reload
 
-Before, `.env` was read once at gateway boot and nothing re-read it, so a
-credential added or rotated in `$KIROCREW_HOME/.env` took effect only after a
-full gateway restart — inconsistent with `config.json`, whose settings the
-watcher already hot-applies ([#22450](https://github.com/kirodotdev/KiroCrew/issues/22450)).
-The dashboard's own credential writer applied its `.env` changes live (direct
-`os.environ` set/pop plus a channel restart off the config half of its
-transaction), but a hand edit or any non-dashboard writer did not.
+A credential added or rotated in `$KIROCREW_HOME/.env` takes effect without a
+gateway restart, like a `config.json` setting, whoever wrote it.
 
-Now the same cycle that reloads `config.json` also reconciles `.env`. When the
+The same cycle that reloads `config.json` also reconciles `.env`. When the
 `.env` fingerprint moves, the watcher re-reads the raw credential map
 (`loader.read_env_credentials_raw()`, off the loop — literal line values, so a
 `secret://NAME` reference stays the reference) and diffs it against the last one
@@ -3076,8 +3057,7 @@ baseline so it can tell a value `.env` itself propagated from one the process
 inherited): a key present in the new file is set, and a key gone from it is
 popped ONLY when the current process value still equals what `.env` last set.
 This uses `os.environ[k] = v` / `pop`, not boot's `setdefault` — boot lets an
-inherited shell value win (the separate precedence concern of
-[#22449](https://github.com/kirodotdev/KiroCrew/issues/22449)), but an operator
+inherited shell value win (a separate precedence concern), but an operator
 editing `.env` on a running gateway *means* the edit, so a live change
 overrides. Only keys the operator actually changed are touched; the two boot
 carve-outs are kept for every caller (the Docker `_KIROCREW_CREDS_SCRUBBED` skip
@@ -3221,9 +3201,8 @@ value, i.e. a foreign/inherited value is being overwritten. A routine rotation
 does not warn (boot propagated the old `.env` value, so the environment held
 exactly what `.env` last set). In that collision case the warning notes that the
 live value will not survive a restart, because boot's `setdefault` rebuilds the
-inherited value — the one remaining live-vs-restart divergence, the
-[#22449](https://github.com/kirodotdev/KiroCrew/issues/22449) precedence
-interaction this change does not otherwise alter.
+inherited value — the one remaining live-vs-restart divergence, a boot precedence
+interaction the live apply does not otherwise alter.
 `test_env_credential_hot_reload.py` pins each of these.
 
 The dashboard's channel-credential writer applies its own `.env` changes to
@@ -3325,14 +3304,14 @@ a new setting registers with, in the owning object's constructor:
 
 All three hold the owner weakly (through the setter's `__self__` for `bind`),
 so a discarded object drops out of the registry like a weakly held bound
-method. What they remove is the per-site ceremony that used to be copied by
+method. What they remove is the per-site ceremony that would otherwise be copied by
 hand — the prefix gate, the `None`-transport guard and, above all, the
 degraded-section refusal, which is an authorization safety check and must not
 exist as nine hand-written copies. What stays on `subscribe` is orchestration
 rather than value adoption: the in-process channel restart, the provider
 switch, the SEL-audited approval widening, the Slack section's fan-out.
 
-`ConfigWatch.replay(sub)`, called on a subscription `watch_object` just returned,
+`ConfigWatch.replay(sub)`, called on a subscription its owner just registered,
 closes the registration gap for an owner that applied a config it loaded itself.
 A reload adopts its config and only then
 snapshots the registry, so one that snapshotted before the owner registered never
@@ -3343,8 +3322,9 @@ when the file has moved past the snapshot (or nothing is fingerprinted yet), the
 snapshot may be older than the owner's own load, so it marks the subscription stale
 for its prefixes and the next tick delivers the new document even where it leaves
 them unchanged. A deferred, failed or async applier is marked stale the same way.
-Unstarted watchers (nothing adopted) make it a no-op. `VectorMemoryStore` is the one
-caller, and replays only when it was built with `config=` (a raised
+Unstarted watchers (nothing adopted) make it a no-op. Three owners call it: the Feishu gateway (its dispatcher's `watch_section`
+subscription, once the transport is wired), the Remote Control guard (its `"tunnel"`
+`subscribe`), and `VectorMemoryStore`, which replays only when it was built with `config=` (a raised
 `memory.episodic_max_count` adopted during construction is not lost); a `config=None`
 store keeps its constructor defaults at construction. The other `watch_object`
 owners that copy caller-loaded config before registering (`cron_history.py`,
@@ -3412,9 +3392,9 @@ started, so a boot-window edit waits in the stale table and is applied by the
 first tick after they are up — through `_apply_one`, with the degraded check,
 rather than by a replay of the boot loop's own. The distinction matters because the watcher adopts the
 degraded document as its snapshot — the refused section at DEFAULTS — so a
-repair that writes back exactly those defaults diffs EMPTY. Before this a skip
-was a silent success and nothing would ever re-run the applier: a revocation
-written alongside a malformed field stayed unapplied for good. Now every clean
+repair that writes back exactly those defaults diffs EMPTY. Without the deferral a
+skip would be a silent success that nothing re-runs, and a revocation written
+alongside a malformed field would stay unapplied for good. Every clean
 load re-runs the stale appliers against the current document even when it has
 nothing to diff (`_retry_stale` on the empty-diff and unchanged-fingerprint
 paths), so the roster catches up with the repair. `_section_applier`,
@@ -3472,11 +3452,10 @@ on the way to `gateway.log`: the file handler and the queue handler
 `cli._setup_cli_logging` installs carry no level of their own (kiro_crew
 records are gated at the kiro_crew logger, third-party records on the detached
 gateway's root-attached handler at the root logger's WARNING), so the runtime
-change reaches the file with nothing else to update. The handlers used to hold
-a boot-time copy of the level that nothing updated, so a gateway booted at
-WARNING dropped its raised INFO records before the file until a restart while
-the live Logs stream showed them; a level re-added to either handler
-is that bug again, and `test_cli_logging.py` pins the contract.
+change reaches the file with nothing else to update. A level set on either
+handler would be a boot-time copy that nothing updates, so a gateway booted at
+WARNING would drop its raised INFO records before the file until a restart while
+the live Logs stream showed them; `test_cli_logging.py` pins the contract.
 Both model appliers rebuild the installed agent specifications before the
 watcher finishes dispatching the change. After a successful `agent.model`
 rebuild, its applier emits a refresh frame, so dashboard PATCH responses and
